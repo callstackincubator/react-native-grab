@@ -1,0 +1,104 @@
+name: "Wrong rendered by stack"
+description: Report rendering issues related to component render stack ("rendered by" chain)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Please share the component render stack (React DevTools "rendered by" chain) so we can reproduce the rendering issue.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the rendering issue
+      description: What did you expect to see, and what is rendered instead?
+      placeholder: I expect ... but instead ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: rendered-by-stack
+    attributes:
+      label: Rendered-by stack details
+      description: Describe the component hierarchy that renders the affected element (as seen in React DevTools "rendered by").
+      placeholder: |
+        App
+          -> Screen
+            -> SomeContainer
+              -> GrabTarget
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Render component ...
+        2. Trigger state/prop change ...
+        3. Observe affected element ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: Minimal reproduction
+      description: Share relevant component tree/screen code or a repository URL.
+      placeholder: Reproduction URL or snippet
+    validations:
+      required: true
+
+  - type: input
+    id: react-native-version
+    attributes:
+      label: React Native version
+      placeholder: 0.76.3
+    validations:
+      required: true
+
+  - type: input
+    id: react-native-grab-version
+    attributes:
+      label: react-native-grab version
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: router
+    attributes:
+      label: Routing library
+      description: Are you using react-navigation or Expo Router?
+      options:
+        - react-navigation
+        - Expo Router
+        - Both
+        - Neither
+    validations:
+      required: true
+
+  - type: dropdown
+    id: native-navigators
+    attributes:
+      label: Using native navigators?
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Platform/device/emulator, OS version, Hermes/JSC, and other relevant setup details.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots / recordings
+      description: Paste logs and attach screenshots/videos if possible.

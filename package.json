@@ -1,0 +1,93 @@
+{
+  "name": "react-native-grab",
+  "version": "1.0.0-rc.1",
+  "description": "Touch-to-grab context for React Native agents.",
+  "keywords": [
+    "devtools",
+    "inspector",
+    "metro",
+    "react-native"
+  ],
+  "homepage": "https://github.com/callstackincubator/react-native-grab",
+  "bugs": {
+    "url": "https://github.com/callstackincubator/react-native-grab/issues"
+  },
+  "license": "MIT",
+  "author": "Szymon Chmal (https://x.com/chmalszymon)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/callstackincubator/react-native-grab.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/cjs/react-native/index.js",
+  "module": "./dist/esm/react-native/index.js",
+  "types": "./dist/types/react-native/index.d.ts",
+  "react-native": "./dist/esm/react-native/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/react-native/index.d.ts",
+      "react-native": "./dist/esm/react-native/index.js",
+      "import": "./dist/esm/react-native/index.js",
+      "require": "./dist/cjs/react-native/index.js",
+      "default": "./dist/esm/react-native/index.js"
+    },
+    "./metro": {
+      "types": "./dist/types/metro/index.d.ts",
+      "import": "./dist/esm/metro/index.js",
+      "require": "./dist/cjs/metro/index.js",
+      "default": "./dist/esm/metro/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:esm": "tsc -p tsconfig.build.esm.json",
+    "build:cjs": "tsc -p tsconfig.build.cjs.json",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "metro-config-transformers": "latest"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "husky": "^9.1.7",
+    "oxfmt": "latest",
+    "typescript": "latest",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@react-navigation/native": "*",
+    "expo-dev-menu": "*",
+    "expo-router": "*",
+    "react": ">=19",
+    "react-native": ">=0.80",
+    "react-native-screens": "*"
+  },
+  "peerDependenciesMeta": {
+    "@react-navigation/native": {
+      "optional": true
+    },
+    "expo-router": {
+      "optional": true
+    },
+    "react-native-screens": {
+      "optional": true
+    },
+    "expo-dev-menu": {
+      "optional": true
+    }
+  }
+}
