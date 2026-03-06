@@ -1,5 +1,4 @@
 import symbolicateStackTrace from "react-native/Libraries/Core/Devtools/symbolicateStackTrace";
-import type { StackFrame } from "react-native/Libraries/Core/Devtools/parseErrorStack";
 import { ReactNativeFiberNode } from "./types";
 
 export type RenderedByFrame = {
@@ -7,6 +6,22 @@ export type RenderedByFrame = {
   file: string | null;
   line: number | null;
   column: number | null;
+  collapse: boolean;
+};
+
+type SymbolicatedStackFrame = {
+  methodName: string;
+  file: string | null | undefined;
+  lineNumber: number | null | undefined;
+  column: number | null | undefined;
+  collapse?: boolean;
+};
+
+type MetroStackFrame = {
+  methodName: string;
+  file: string | null | undefined;
+  lineNumber: number | null | undefined;
+  column: number | null | undefined;
   collapse: boolean;
 };
 
@@ -158,7 +173,7 @@ const getRenderedByFrames = (fiber: any): RenderedByFrame[] => {
   return result;
 };
 
-const toMetroStackFrame = (frame: RenderedByFrame): StackFrame => {
+const toMetroStackFrame = (frame: RenderedByFrame): MetroStackFrame => {
   return {
     methodName: frame.name,
     file: frame.file ?? undefined,
@@ -175,7 +190,8 @@ export const getRenderedBy = async (fiber: ReactNativeFiberNode): Promise<Render
   try {
     const metroFrames = frames.map(toMetroStackFrame);
     const { stack: symbolicated } = await symbolicateStackTrace(metroFrames);
-    return symbolicated
+    const compatibleStack = symbolicated as ReadonlyArray<SymbolicatedStackFrame>;
+    return compatibleStack
       .filter((sf) => sf.collapse !== true)
       .map((sf, i) => ({
         name: frames[i]?.name ?? sf.methodName,
