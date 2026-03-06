@@ -32,10 +32,7 @@ type V8CallSite = {
   getColumnNumber(): number | null;
 };
 
-const restoreStackDescriptor = (
-  error: Error,
-  descriptor: PropertyDescriptor | undefined,
-) => {
+const restoreStackDescriptor = (error: Error, descriptor: PropertyDescriptor | undefined) => {
   try {
     if (descriptor) {
       Object.defineProperty(error, "stack", descriptor);
