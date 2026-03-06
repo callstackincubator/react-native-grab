@@ -1,6 +1,8 @@
 import { ReactNativeFiberNode } from "./types";
 import { getRenderedBy } from "./get-rendered-by";
 import type { RenderedByFrame } from "./get-rendered-by";
+import type { ReactNativeGrabContextValue } from "./grab-context";
+import { ReactNativeGrabInternalContext } from "./grab-context";
 
 const MAX_STACK_LINES = 6;
 const MAX_TEXT_LENGTH = 120;
@@ -164,12 +166,55 @@ const buildStackContext = (renderedBy: RenderedByFrame[]): string => {
   return lines.join("");
 };
 
+type ReactProviderType = {
+  Provider?: unknown;
+};
+
+type ContextProviderFiberNode = ReactNativeFiberNode & {
+  type?: unknown;
+  memoizedProps?: {
+    value?: ReactNativeGrabContextValue;
+  } | null;
+};
+
+const isGrabContextProviderFiber = (fiber: ContextProviderFiberNode): boolean => {
+  const providerType = fiber.type;
+  return (
+    providerType === ReactNativeGrabInternalContext ||
+    providerType === (ReactNativeGrabInternalContext as ReactProviderType).Provider
+  );
+};
+
+const getGrabContextFromFiber = (
+  node: ReactNativeFiberNode,
+): ReactNativeGrabContextValue | null => {
+  let current: ContextProviderFiberNode | null = node;
+
+  while (current) {
+    if (isGrabContextProviderFiber(current)) {
+      return current.memoizedProps?.value ?? null;
+    }
+    current = current.return ?? null;
+  }
+
+  return null;
+};
+
+const buildContextBlock = (contextValue: ReactNativeGrabContextValue | null): string => {
+  if (!contextValue || Object.keys(contextValue).length === 0) {
+    return "";
+  }
+
+  return `\n\nContext:\n${JSON.stringify(contextValue, null, 2)}`;
+};
+
 export const getDescription = async (node: ReactNativeFiberNode): Promise<string> => {
   let renderedBy = await getRenderedBy(node);
 
   const preview = buildElementPreview(node, renderedBy);
   const stackContext = buildStackContext(renderedBy);
+  const contextBlock = buildContextBlock(getGrabContextFromFiber(node));
 
-  if (!stackContext) return preview;
-  return `${preview}${stackContext}`;
+  if (!stackContext) return `${preview}${contextBlock}`;
+  return `${preview}${stackContext}${contextBlock}`;
 };

@@ -46,11 +46,21 @@ const config = getDefaultConfig(__dirname);
 module.exports = withReactNativeGrab(config);
 
 // app root
-import { ReactNativeGrabRoot, ReactNativeGrabScreen } from "react-native-grab";
+import {
+  ReactNativeGrabRoot,
+  ReactNativeGrabScreen,
+  ReactNativeGrabContextProvider,
+} from "react-native-grab";
 
 // When using native navigators (native stack, native tabs), wrap each screen:
 function HomeScreen() {
-  return <ReactNativeGrabScreen>{/* screen content */}</ReactNativeGrabScreen>;
+  return (
+    <ReactNativeGrabScreen>
+      <ReactNativeGrabContextProvider value={{ screen: "home" }}>
+        {/* screen content */}
+      </ReactNativeGrabContextProvider>
+    </ReactNativeGrabScreen>
+  );
 }
 
 export default function AppLayout() {
@@ -62,7 +72,10 @@ export default function AppLayout() {
 
 - `ReactNativeGrabRoot`: Root-level provider for grab functionality.
 - `ReactNativeGrabScreen`: When using native navigators (native stack, native tabs), wrap **each screen** with this component for accurate selection.
+- `ReactNativeGrabContextProvider`: Adds custom metadata to grabbed elements. Nested providers are shallow-merged and child keys override parent keys. This provider is a no-op in production builds.
 - `enableGrabbing()`: Programmatically enables grabbing flow.
+
+When grab context is available for a selected element, copied output includes an additional `Context:` JSON block appended after the existing element preview and stack trace lines.
 
 ## Documentation
 
