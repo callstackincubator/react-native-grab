@@ -104,6 +104,31 @@ export default function TabTwoScreen() {
                 </Pressable>
               </Link>
             </Collapsible>
+
+            <Collapsible title="Grab context playground">
+              <ThemedText type="small">
+                Open a dedicated modal with nested grab context providers. Each nested element
+                displays the context object it contributes.
+              </ThemedText>
+              <Link href="/context-playground" asChild>
+                <Pressable
+                  style={({ pressed }) => [styles.modalTrigger, pressed && styles.pressed]}
+                >
+                  <ThemedView type="backgroundElement" style={styles.modalTriggerInner}>
+                    <ThemedText type="link">Open context playground</ThemedText>
+                    <SymbolView
+                      tintColor={theme.text}
+                      name={{
+                        ios: "square.stack.3d.down.forward",
+                        android: "layers",
+                        web: "layers",
+                      }}
+                      size={14}
+                    />
+                  </ThemedView>
+                </Pressable>
+              </Link>
+            </Collapsible>
           </ThemedView>
           {Platform.OS === "web" && <WebBadge />}
         </ThemedView>

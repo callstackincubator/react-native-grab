@@ -18,6 +18,10 @@ export default function MainLayout() {
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
+            <Stack.Screen
+              name="context-playground"
+              options={{ presentation: "modal", title: "Context Playground" }}
+            />
           </Stack>
         </View>
       </ThemeProvider>
