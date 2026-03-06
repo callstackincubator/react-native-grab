@@ -1,5 +1,5 @@
 import symbolicateStackTrace from "react-native/Libraries/Core/Devtools/symbolicateStackTrace";
-import type { StackFrame } from "react-native/Libraries/Core/Devtools/parseErrorStack";
+import type { ReactNativeGrabStackFrame as StackFrame } from "react-native/Libraries/Core/Devtools/parseErrorStack";
 import { ReactNativeFiberNode } from "./types";
 
 export type RenderedByFrame = {
