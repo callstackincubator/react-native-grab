@@ -32,17 +32,37 @@ type V8CallSite = {
   getColumnNumber(): number | null;
 };
 
+const restoreStackDescriptor = (
+  error: Error,
+  descriptor: PropertyDescriptor | undefined,
+) => {
+  try {
+    if (descriptor) {
+      Object.defineProperty(error, "stack", descriptor);
+    } else {
+      delete (error as Error & { stack?: unknown }).stack;
+    }
+  } catch {
+    // Best effort only. Some runtimes may prevent restoring non-configurable properties.
+  }
+};
+
 const firstUserFrameFromError = (
   error: Error,
 ): { file: string | null; line: number | null; column: number | null } | null => {
+  const stackDescriptorBeforeCallSites = Object.getOwnPropertyDescriptor(error, "stack");
   let callSites: V8CallSite[] | null = null;
   const prev = (Error as any).prepareStackTrace;
-  (Error as any).prepareStackTrace = (_: unknown, sites: V8CallSite[]) => {
-    callSites = sites;
-    return "";
-  };
-  void error.stack;
-  (Error as any).prepareStackTrace = prev;
+  try {
+    (Error as any).prepareStackTrace = (_: unknown, sites: V8CallSite[]) => {
+      callSites = sites;
+      return "";
+    };
+    void error.stack;
+  } finally {
+    (Error as any).prepareStackTrace = prev;
+    restoreStackDescriptor(error, stackDescriptorBeforeCallSites);
+  }
 
   if (callSites && (callSites as V8CallSite[]).length > 0) {
     const sites = callSites as V8CallSite[];
@@ -77,10 +97,16 @@ const firstUserFrameFromError = (
     return null;
   }
 
+  const stackDescriptorBeforeString = Object.getOwnPropertyDescriptor(error, "stack");
   const prevStr = (Error as any).prepareStackTrace;
-  (Error as any).prepareStackTrace = undefined;
-  let stack = error.stack ?? "";
-  (Error as any).prepareStackTrace = prevStr;
+  let stack = "";
+  try {
+    (Error as any).prepareStackTrace = undefined;
+    stack = error.stack ?? "";
+  } finally {
+    (Error as any).prepareStackTrace = prevStr;
+    restoreStackDescriptor(error, stackDescriptorBeforeString);
+  }
 
   if (stack.startsWith("Error: react-stack-top-frame\n")) {
     stack = stack.slice("Error: react-stack-top-frame\n".length);
