@@ -1,6 +1,6 @@
 {
   "name": "react-native-grab",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "description": "Touch-to-grab context for React Native agents.",
   "keywords": [
     "devtools",
