@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { View, type ViewProps } from "react-native";
 import { setFocusedScreenRef } from "./containers";
 
@@ -15,7 +15,14 @@ const getFocusEffectImpl = (): ((cb: () => void) => void) => {
     // Nothing we can do about it, it's not installed in the project.
   }
 
-  throw new Error("No useFocusEffect implementation found");
+  // No supported router found — fall back to useEffect
+  return (cb: () => void) => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === "function" ? cleanup : undefined;
+    }, [cb]);
+  };
 };
 
 const useFocusEffect = getFocusEffectImpl();
