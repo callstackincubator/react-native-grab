@@ -74,6 +74,14 @@ export default function AppLayout() {
 - `ReactNativeGrabScreen`: When using native navigators (native stack, native tabs), wrap **each screen** with this component for accurate selection.
 - `ReactNativeGrabContextProvider`: Adds custom metadata to grabbed elements. Nested providers are shallow-merged and child keys override parent keys. This provider is a no-op in production builds.
 - `enableGrabbing()`: Programmatically enables grabbing flow.
+- `setFocusEffect(impl)`: Overrides the hook used by `ReactNativeGrabScreen` to detect when a screen is focused. By default the library auto-detects `useFocusEffect` from `expo-router` or `@react-navigation/native`. Call `setFocusEffect` once at app startup when neither package is present (e.g. a custom router) or when you want explicit control over which implementation is used.
+
+```ts
+import { setFocusEffect } from "react-native-grab";
+import { useFocusEffect } from "my-custom-router";
+
+setFocusEffect(useFocusEffect);
+```
 
 When grab context is available for a selected element, copied output includes an additional `Context:` JSON block appended after the existing element preview and stack trace lines.
 
