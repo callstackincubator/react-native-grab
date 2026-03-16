@@ -1,5 +1,15 @@
 # react-native-grab
 
+## 1.1.0
+
+### Minor Changes
+
+- New control bar for grab overlay with improved actions and layout.
+
+### Patch Changes
+
+- Grab screen now works without a navigation library by falling back to `useEffect` when focus APIs are unavailable.
+
 ## 1.0.0
 
 ### Minor Changes
