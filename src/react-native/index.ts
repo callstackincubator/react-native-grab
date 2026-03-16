@@ -30,3 +30,7 @@ export const ReactNativeGrabContextProvider: React.ComponentType<ReactNativeGrab
 export const enableGrabbing: () => void = __DEV__
   ? require("./grab-controller").enableGrabbing
   : noop;
+
+export const setFocusEffect: (impl: (cb: () => void) => void) => void = __DEV__
+  ? require("./focus-effect").setFocusEffect
+  : noop;

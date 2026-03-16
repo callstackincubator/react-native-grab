@@ -1,24 +1,9 @@
 import { useCallback, useRef } from "react";
 import { View, type ViewProps } from "react-native";
 import { setFocusedScreenRef } from "./containers";
+import { getFocusEffect } from "./focus-effect";
 
-const getFocusEffectImpl = (): ((cb: () => void) => void) => {
-  try {
-    return require("expo-router").useFocusEffect;
-  } catch {
-    // Nothing we can do about it, it's not installed in the project.
-  }
-
-  try {
-    return require("@react-navigation/native").useFocusEffect;
-  } catch {
-    // Nothing we can do about it, it's not installed in the project.
-  }
-
-  throw new Error("No useFocusEffect implementation found");
-};
-
-const useFocusEffect = getFocusEffectImpl();
+const useFocusEffect = getFocusEffect();
 
 export type ReactNativeGrabScreenProps = ViewProps;
 
