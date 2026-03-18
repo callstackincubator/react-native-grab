@@ -4,6 +4,7 @@ import {
   Dimensions,
   NativeTouchEvent,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -157,13 +158,25 @@ export const ReactNativeGrabOverlay = () => {
     const appRootBoundingClientRect = measureInWindow(appRootShadowNode);
     const focusedScreenBoundingClientRect = measureInWindow(focusedScreenShadowNode);
 
-    let focusedScreenOffsetY = focusedScreenBoundingClientRect[1];
-    let focusedScreenHeight = focusedScreenBoundingClientRect[3];
-    let appRootHeight = appRootBoundingClientRect[3];
+    const focusedScreenOffsetY = focusedScreenBoundingClientRect[1];
+    const focusedScreenHeight = focusedScreenBoundingClientRect[3];
+    const appRootHeight = appRootBoundingClientRect[3];
+    const appRootOffsetY = appRootBoundingClientRect[1];
 
-    const offset = appRootHeight - focusedScreenHeight - focusedScreenOffsetY;
+    const overlayOffset = Platform.select({
+      ios: appRootHeight - focusedScreenHeight - focusedScreenOffsetY,
+      android: focusedScreenOffsetY - (appRootOffsetY + focusedScreenOffsetY),
+      default: 0,
+    });
+
+    const pageOffset = Platform.select({
+      ios: focusedScreenHeight - appRootHeight,
+      android: appRootOffsetY - focusedScreenOffsetY,
+      default: 0,
+    });
+
     const pageX = nativePageX;
-    const pageY = nativePageY - (appRootHeight - focusedScreenHeight);
+    const pageY = nativePageY + pageOffset;
 
     const internalNode = findNodeAtPoint(focusedScreenShadowNode, pageX, pageY);
     const shadowNode = internalNode?.stateNode?.node;
@@ -173,7 +186,7 @@ export const ReactNativeGrabOverlay = () => {
     }
 
     const rect = nativeFabricUIManager.getBoundingClientRect(shadowNode, true);
-    return { fiberNode: internalNode, rect: [rect[0], rect[1] + offset, rect[2], rect[3]] };
+    return { fiberNode: internalNode, rect: [rect[0], rect[1] + overlayOffset, rect[2], rect[3]] };
   };
 
   const handleTouch = (nativeEvent: NativeTouchEvent) => {
