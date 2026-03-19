@@ -34,6 +34,11 @@ export type ContextMenuCutout = {
   height: number;
 };
 
+export type ContextMenuBounds = {
+  width: number;
+  height: number;
+};
+
 export type ContextMenuHorizontalAlignment = "left" | "center" | "right";
 export type ContextMenuVerticalAlignment = "top" | "center" | "bottom";
 export type ContextMenuOffset = {
@@ -49,6 +54,7 @@ const ContextMenuContext = createContext<ContextMenuContextValue | null>(null);
 
 export type ContextMenuProps = {
   anchor: ContextMenuAnchor | null;
+  bounds?: ContextMenuBounds | null;
   children?: ReactNode;
   cutout?: ContextMenuCutout | null;
   horizontalAlignment?: ContextMenuHorizontalAlignment;
@@ -104,8 +110,9 @@ const getMenuPosition = (
   horizontalAlignment: ContextMenuHorizontalAlignment,
   verticalAlignment: ContextMenuVerticalAlignment,
   offset: ContextMenuOffset,
+  bounds: ContextMenuBounds | null,
 ) => {
-  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const { width: screenWidth, height: screenHeight } = bounds ?? Dimensions.get("window");
   const preferredLeft = getAlignedLeft(anchor.x, menuWidth, horizontalAlignment) + offset.x;
   const preferredTop = getAlignedTop(anchor.y, menuHeight, verticalAlignment) + offset.y;
 
@@ -154,6 +161,7 @@ const ContextMenuItem = ({
 
 export const ContextMenu = ({
   anchor,
+  bounds = null,
   children,
   cutout = null,
   horizontalAlignment = "center",
@@ -211,8 +219,10 @@ export const ContextMenu = ({
       horizontalAlignment,
       verticalAlignment,
       offset,
+      bounds,
     );
   }, [
+    bounds,
     horizontalAlignment,
     menuSize.height,
     menuSize.width,
@@ -226,8 +236,8 @@ export const ContextMenu = ({
     [children],
   );
 
-  const backdropRegions = useMemo(() => {
-    const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const dismissalRegions = useMemo(() => {
+    const { width: screenWidth, height: screenHeight } = bounds ?? Dimensions.get("window");
 
     if (!cutout) {
       return [
@@ -285,7 +295,7 @@ export const ContextMenu = ({
         },
       },
     ];
-  }, [cutout]);
+  }, [bounds, cutout]);
 
   if (!isRendered || !renderedAnchor || renderedItems.length === 0) {
     return null;
@@ -293,23 +303,7 @@ export const ContextMenu = ({
 
   return (
     <View pointerEvents="box-none" style={styles.overlay}>
-      {backdropRegions.map((region) => (
-        <Animated.View
-          key={`backdrop-${region.key}`}
-          pointerEvents="none"
-          style={[
-            region.style,
-            styles.backdrop,
-            {
-              opacity: animation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 1],
-              }),
-            },
-          ]}
-        />
-      ))}
-      {backdropRegions.map((region) => (
+      {dismissalRegions.map((region) => (
         <Pressable
           key={`pressable-${region.key}`}
           accessibilityLabel="Close context menu"
@@ -343,11 +337,13 @@ export const ContextMenu = ({
             },
           ]}
         >
-          {renderedItems.map((child, index) => (
-            <View key={index} style={index > 0 ? styles.itemBorder : undefined}>
-              {child}
-            </View>
-          ))}
+          <View style={styles.menuContent}>
+            {renderedItems.map((child, index) => (
+              <View key={index} style={index > 0 ? styles.itemBorder : undefined}>
+                {child}
+              </View>
+            ))}
+          </View>
         </Animated.View>
       </ContextMenuContext.Provider>
     </View>
@@ -362,21 +358,21 @@ const styles = StyleSheet.create({
     zIndex: 10,
     elevation: 10,
   },
-  backdrop: {
-    backgroundColor: "rgba(0, 0, 0, 0.06)",
-  },
   menu: {
     position: "absolute",
     zIndex: 11,
     minWidth: 176,
     borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.16,
     shadowRadius: 24,
     elevation: 10,
+  },
+  menuContent: {
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
   },
   item: {
     paddingHorizontal: 14,

@@ -1,27 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
   NativeTouchEvent,
   PanResponder,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type GestureResponderHandlers,
 } from "react-native";
-import { getAppRootShadowNode, getFocusedScreenShadowNode } from "./containers";
-import { findNodeAtPoint, measureInWindow } from "./measure";
-import type { BoundingClientRect, ReactNativeFiberNode } from "./types";
-import { useDevMenu } from "./dev-menu";
-import { getDescription } from "./description";
+import { getGrabSelectionOwner, useIsResolvedGrabSelectionOwner } from "./containers";
 import { copyViaMetro } from "./copy";
-import { FullScreenOverlay } from "./full-screen-overlay";
-import { setEnableGrabbingHandler, setToggleGrabMenuHandler } from "./grab-controller";
-import { GrabControlBar } from "./grab-control-bar";
 import { ContextMenu } from "./context-menu";
+import { GRAB_BADGE_BACKGROUND, GRAB_HIGHLIGHT_FILL, GRAB_PRIMARY } from "./grab-colors";
+import {
+  clearGrabOwnerPresentation,
+  hideGrabSelectionMenu,
+  registerLocalGrabSelectionController,
+  setGrabSelectionSessionOwner,
+  showGrabSelectionMenu,
+  unregisterLocalGrabSelectionController,
+} from "./grab-controller";
+import { getDescription } from "./description";
 import { getRenderedBy, type RenderedByFrame } from "./get-rendered-by";
+import { findNodeAtPoint, measureInWindow } from "./measure";
 import { openStackFrameInEditor } from "./open";
+import type { BoundingClientRect, ReactNativeFiberNode } from "./types";
 
 type GrabResult = {
   fiberNode: ReactNativeFiberNode;
@@ -36,26 +39,20 @@ type SelectedGrabResult = {
 };
 
 const COPY_BADGE_DURATION_MS = 1600;
-const CALLSTACK_PRIMARY = "#8232FF";
-const HIGHLIGHT_FILL = "rgba(130, 50, 255, 0.2)";
-const BADGE_BACKGROUND = "rgba(130, 50, 255, 0.92)";
-const BAR_HEIGHT = 36;
-const BAR_WIDTH = 108;
-const INITIAL_BAR_POSITION = {
-  x: (Dimensions.get("window").width - BAR_WIDTH) / 2,
-  y: 72,
+
+export type ReactNativeGrabOverlayProps = {
+  ownerId: string;
+  onPanHandlersChange?: (panHandlers: GestureResponderHandlers | null) => void;
 };
 
-const clamp = (value: number, min: number, max: number) => {
-  return Math.min(Math.max(value, min), max);
-};
-
-export const ReactNativeGrabOverlay = () => {
+export const ReactNativeGrabOverlay = ({
+  ownerId,
+  onPanHandlersChange,
+}: ReactNativeGrabOverlayProps) => {
+  const isResolvedSelectionOwner = useIsResolvedGrabSelectionOwner(ownerId);
   const copyBadgeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const controlBarPosition = useRef(new Animated.ValueXY(INITIAL_BAR_POSITION)).current;
-  const shouldResetControlBarPositionRef = useRef(false);
+  const [bounds, setBounds] = useState({ width: 0, height: 0 });
   const [state, setState] = useState({
-    isMenuVisible: false,
     isSessionEnabled: false,
     grabbedElement: null as GrabResult | null,
     isCopyBadgeVisible: false,
@@ -75,22 +72,20 @@ export const ReactNativeGrabOverlay = () => {
     setState((prev) => ({
       ...prev,
       isSessionEnabled: false,
+      grabbedElement: null,
     }));
   }, []);
 
-  const toggleMenuVisibility = useCallback(() => {
+  const closeSelectedElementMenu = useCallback(() => {
+    hideGrabSelectionMenu(ownerId);
     setState((prev) => {
-      shouldResetControlBarPositionRef.current = prev.isMenuVisible;
-
       return {
         ...prev,
-        isMenuVisible: !prev.isMenuVisible,
-        isSessionEnabled: !prev.isMenuVisible ? prev.isSessionEnabled : false,
-        grabbedElement: !prev.isMenuVisible ? prev.grabbedElement : null,
-        selectedElement: !prev.isMenuVisible ? prev.selectedElement : null,
+        selectedElement: null,
+        grabbedElement: null,
       };
     });
-  }, []);
+  }, [ownerId]);
 
   useEffect(() => {
     return () => {
@@ -107,14 +102,6 @@ export const ReactNativeGrabOverlay = () => {
     }));
   }, []);
 
-  const closeSelectedElementMenu = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      selectedElement: null,
-      grabbedElement: null,
-    }));
-  }, []);
-
   const showCopiedBadge = useCallback(() => {
     if (copyBadgeTimeoutRef.current) {
       clearTimeout(copyBadgeTimeoutRef.current);
@@ -128,65 +115,48 @@ export const ReactNativeGrabOverlay = () => {
     }, COPY_BADGE_DURATION_MS);
   }, []);
 
-  const resetControlBarPosition = useCallback(() => {
-    if (!shouldResetControlBarPositionRef.current) {
+  useEffect(() => {
+    if (isResolvedSelectionOwner) {
       return;
     }
 
-    shouldResetControlBarPositionRef.current = false;
-    controlBarPosition.setValue(INITIAL_BAR_POSITION);
-  }, [controlBarPosition]);
+    clearGrabOwnerPresentation(ownerId);
+    setState((prev) => {
+      if (!prev.isSessionEnabled && !prev.grabbedElement && !prev.selectedElement) {
+        return prev;
+      }
 
-  useEffect(() => {
-    setEnableGrabbingHandler(startSession);
-    setToggleGrabMenuHandler(toggleMenuVisibility);
-    return () => {
-      setEnableGrabbingHandler(null);
-      setToggleGrabMenuHandler(null);
-    };
-  }, [startSession, toggleMenuVisibility]);
-
-  useDevMenu(toggleMenuVisibility);
+      return {
+        ...prev,
+        isSessionEnabled: false,
+        grabbedElement: null,
+        selectedElement: null,
+      };
+    });
+  }, [isResolvedSelectionOwner, ownerId]);
 
   const getElementAtPoint = (
-    nativePageX: number,
-    nativePageY: number,
+    pageX: number,
+    pageY: number,
   ): { fiberNode: ReactNativeFiberNode; rect: BoundingClientRect } | null => {
-    const appRootShadowNode = getAppRootShadowNode();
-    const focusedScreenShadowNode = getFocusedScreenShadowNode();
+    const owner = getGrabSelectionOwner(ownerId);
+    if (!owner) {
+      return null;
+    }
 
-    const appRootBoundingClientRect = measureInWindow(appRootShadowNode);
-    const focusedScreenBoundingClientRect = measureInWindow(focusedScreenShadowNode);
-
-    const focusedScreenOffsetY = focusedScreenBoundingClientRect[1];
-    const focusedScreenHeight = focusedScreenBoundingClientRect[3];
-    const appRootHeight = appRootBoundingClientRect[3];
-    const appRootOffsetY = appRootBoundingClientRect[1];
-
-    const overlayOffset = Platform.select({
-      ios: appRootHeight - focusedScreenHeight - focusedScreenOffsetY,
-      android: focusedScreenOffsetY - (appRootOffsetY + focusedScreenOffsetY),
-      default: 0,
-    });
-
-    const pageOffset = Platform.select({
-      ios: focusedScreenHeight - appRootHeight,
-      android: appRootOffsetY - focusedScreenOffsetY,
-      default: 0,
-    });
-
-    const pageX = nativePageX;
-    const pageY = nativePageY + pageOffset;
-
-    const internalNode = findNodeAtPoint(focusedScreenShadowNode, pageX, pageY);
+    const internalNode = findNodeAtPoint(owner.shadowNode, pageX, pageY);
     const shadowNode = internalNode?.stateNode?.node;
 
     if (!shadowNode) {
       return null;
     }
 
+    const ownerRect = measureInWindow(owner.shadowNode);
     const rect = nativeFabricUIManager.getBoundingClientRect(shadowNode, true);
-    return { fiberNode: internalNode, rect: [rect[0], rect[1] + overlayOffset, rect[2], rect[3]] };
+    return {
+      fiberNode: internalNode,
+      rect: [rect[0] - ownerRect[0], rect[1] - ownerRect[1], rect[2], rect[3]],
+    };
   };
 
   const handleTouch = (nativeEvent: NativeTouchEvent) => {
@@ -200,27 +170,82 @@ export const ReactNativeGrabOverlay = () => {
     updateGrabbedElement(result);
   };
 
-  const handleGrabbing = async (result: GrabResult): Promise<void> => {
-    const [description, renderedBy] = await Promise.all([
-      getDescription(result.fiberNode),
-      getRenderedBy(result.fiberNode),
-    ]);
+  const handleGrabbing = useCallback(
+    async (result: GrabResult): Promise<void> => {
+      const [description, renderedBy] = await Promise.all([
+        getDescription(result.fiberNode),
+        getRenderedBy(result.fiberNode),
+      ]);
 
-    const firstFrame = renderedBy.find((frame) => Boolean(frame.file)) ?? null;
-    const elementNameMatch = description.match(/<([A-Za-z0-9_$.:-]+)/);
-    const elementName = elementNameMatch?.[1] ?? firstFrame?.name ?? "Selected element";
+      const firstFrame = renderedBy.find((frame) => Boolean(frame.file)) ?? null;
+      const elementNameMatch = description.match(/<([A-Za-z0-9_$.:-]+)/);
+      const elementName = elementNameMatch?.[1] ?? firstFrame?.name ?? "Selected element";
 
-    setState((prev) => ({
-      ...prev,
-      grabbedElement: result,
-      selectedElement: {
-        description,
-        elementName,
-        frame: firstFrame,
-        result,
+      setState((prev) => ({
+        ...prev,
+        grabbedElement: result,
+        selectedElement: {
+          description,
+          elementName,
+          frame: firstFrame,
+          result,
+        },
+      }));
+      showGrabSelectionMenu(ownerId);
+    },
+    [ownerId],
+  );
+
+  useEffect(() => {
+    registerLocalGrabSelectionController(ownerId, {
+      closeSelectionMenu: () => {
+        closeSelectedElementMenu();
       },
-    }));
-  };
+      startSelection: startSession,
+      stopSelection: () => {
+        closeSelectedElementMenu();
+        stopSession();
+      },
+    });
+
+    return () => {
+      unregisterLocalGrabSelectionController(ownerId);
+    };
+  }, [closeSelectedElementMenu, ownerId, startSession, stopSession]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+
+      onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent),
+      onPanResponderMove: (evt) => handleTouch(evt.nativeEvent),
+      onPanResponderRelease: (evt) => {
+        void (async () => {
+          try {
+            const result = getElementAtPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+            if (!result) {
+              return;
+            }
+
+            await handleGrabbing(result);
+          } catch {
+            console.error("[react-native-grab] Grabbing failed.");
+          } finally {
+            setGrabSelectionSessionOwner(null);
+            stopSession();
+          }
+        })();
+      },
+    }),
+  ).current;
+
+  useEffect(() => {
+    onPanHandlersChange?.(state.isSessionEnabled ? panResponder.panHandlers : null);
+    return () => {
+      onPanHandlersChange?.(null);
+    };
+  }, [onPanHandlersChange, panResponder.panHandlers, state.isSessionEnabled]);
 
   const handleCopySelectedElement = useCallback(async () => {
     const selectedElement = state.selectedElement;
@@ -260,72 +285,6 @@ export const ReactNativeGrabOverlay = () => {
     }
   }, [closeSelectedElementMenu, state.selectedElement]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-
-      onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent),
-      onPanResponderMove: (evt) => handleTouch(evt.nativeEvent),
-      onPanResponderRelease: (evt) => {
-        void (async () => {
-          try {
-            const result = getElementAtPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
-            if (!result) {
-              return;
-            }
-
-            await handleGrabbing(result);
-          } catch {
-            console.error("[react-native-grab] Grabbing failed.");
-          } finally {
-            stopSession();
-          }
-        })();
-      },
-    }),
-  ).current;
-
-  const dragHandlePanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2,
-      onPanResponderGrant: () => {
-        controlBarPosition.stopAnimation((value) => {
-          controlBarPosition.setOffset(value);
-          controlBarPosition.setValue({ x: 0, y: 0 });
-        });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: controlBarPosition.x, dy: controlBarPosition.y }],
-        { useNativeDriver: false },
-      ),
-      onPanResponderRelease: () => {
-        controlBarPosition.flattenOffset();
-        controlBarPosition.stopAnimation((value) => {
-          const { width, height } = Dimensions.get("window");
-
-          controlBarPosition.setValue({
-            x: clamp(value.x, 0, Math.max(0, width - BAR_WIDTH)),
-            y: clamp(value.y, 0, Math.max(0, height - BAR_HEIGHT)),
-          });
-        });
-      },
-      onPanResponderTerminate: () => {
-        controlBarPosition.flattenOffset();
-        controlBarPosition.stopAnimation((value) => {
-          const { width, height } = Dimensions.get("window");
-
-          controlBarPosition.setValue({
-            x: clamp(value.x, 0, Math.max(0, width - BAR_WIDTH)),
-            y: clamp(value.y, 0, Math.max(0, height - BAR_HEIGHT)),
-          });
-        });
-      },
-    }),
-  ).current;
-
   const selectedElementMenuAnchor = useMemo(() => {
     if (!state.selectedElement) {
       return null;
@@ -338,124 +297,117 @@ export const ReactNativeGrabOverlay = () => {
     };
   }, [state.selectedElement]);
 
-  const isControlBarVisible =
-    state.isMenuVisible && !state.isSessionEnabled && state.selectedElement === null;
+  const highlightedElement = state.grabbedElement ?? state.selectedElement?.result ?? null;
+
+  if (
+    !state.isSessionEnabled &&
+    !state.isCopyBadgeVisible &&
+    !state.grabbedElement &&
+    !state.selectedElement
+  ) {
+    return null;
+  }
 
   return (
-    <FullScreenOverlay>
-      <View pointerEvents="box-none" style={styles.overlayRoot}>
-        {state.isSessionEnabled && (
-          <View
-            style={[StyleSheet.absoluteFill, styles.sessionCapture]}
-            {...panResponder.panHandlers}
-          />
-        )}
+    <View
+      pointerEvents="box-none"
+      style={styles.overlayRoot}
+      onLayout={(event) => {
+        const { width, height } = event.nativeEvent.layout;
+        setBounds((prev) => {
+          if (prev.width === width && prev.height === height) {
+            return prev;
+          }
 
-        {state.isSessionEnabled && (
-          <View pointerEvents="none" style={styles.topBadge}>
-            <Text style={styles.topBadgeText}>Touch and move around to grab</Text>
-          </View>
-        )}
+          return { width, height };
+        });
+      }}
+    >
+      {state.isSessionEnabled && (
+        <View pointerEvents="none" style={styles.topBadge}>
+          <Text style={styles.topBadgeText}>Touch and move around to grab</Text>
+        </View>
+      )}
 
-        {state.isCopyBadgeVisible && (
-          <View pointerEvents="none" style={styles.topBadge}>
-            <Text style={styles.topBadgeText}>Element copied</Text>
-          </View>
-        )}
+      {state.isCopyBadgeVisible && (
+        <View pointerEvents="none" style={styles.topBadge}>
+          <Text style={styles.topBadgeText}>Element copied</Text>
+        </View>
+      )}
 
-        {!!state.grabbedElement && (
-          <View
-            style={[
-              {
-                position: "absolute",
-                left: state.grabbedElement.rect[0],
-                top: state.grabbedElement.rect[1],
-                width: state.grabbedElement.rect[2],
-                height: state.grabbedElement.rect[3],
-                pointerEvents: "none",
-              },
-              {
-                backgroundColor: HIGHLIGHT_FILL,
-                borderWidth: 1,
-                borderColor: CALLSTACK_PRIMARY,
-              },
-            ]}
-          />
-        )}
-
-        <GrabControlBar
-          containerStyle={[
-            styles.controlBar,
+      {!!highlightedElement && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.highlight,
             {
-              transform: controlBarPosition.getTranslateTransform(),
+              left: highlightedElement.rect[0],
+              top: highlightedElement.rect[1],
+              width: highlightedElement.rect[2],
+              height: highlightedElement.rect[3],
             },
           ]}
-          dragHandlePanHandlers={dragHandlePanResponder.panHandlers}
-          isSessionEnabled={state.isSessionEnabled}
-          isVisible={isControlBarVisible}
-          onHidden={resetControlBarPosition}
-          onPressHide={toggleMenuVisibility}
-          onPressSelect={startSession}
         />
+      )}
 
-        <ContextMenu
-          anchor={selectedElementMenuAnchor}
-          cutout={
-            state.selectedElement
-              ? {
-                  x: state.selectedElement.result.rect[0],
-                  y: state.selectedElement.result.rect[1],
-                  width: state.selectedElement.result.rect[2],
-                  height: state.selectedElement.result.rect[3],
-                }
-              : null
-          }
-          horizontalAlignment="center"
-          offset={{ x: 0, y: 8 }}
-          onClose={closeSelectedElementMenu}
-          visible={state.selectedElement !== null}
-        >
-          <View style={styles.selectionMenuHeader}>
-            <Text numberOfLines={1} style={styles.selectionMenuTitle}>
-              {state.selectedElement?.elementName}
+      <ContextMenu
+        anchor={selectedElementMenuAnchor}
+        bounds={bounds}
+        cutout={
+          state.selectedElement
+            ? {
+                x: state.selectedElement.result.rect[0],
+                y: state.selectedElement.result.rect[1],
+                width: state.selectedElement.result.rect[2],
+                height: state.selectedElement.result.rect[3],
+              }
+            : null
+        }
+        horizontalAlignment="center"
+        offset={{ x: 0, y: 8 }}
+        onClose={closeSelectedElementMenu}
+        visible={state.selectedElement !== null}
+      >
+        <View style={styles.selectionMenuHeader}>
+          <Text numberOfLines={1} style={styles.selectionMenuTitle}>
+            {state.selectedElement?.elementName}
+          </Text>
+        </View>
+        <View style={styles.selectionMenuActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void handleCopySelectedElement()}
+            style={({ pressed }) => [
+              styles.selectionMenuActionButton,
+              pressed && styles.selectionMenuActionButtonPressed,
+            ]}
+          >
+            <Text style={styles.selectionMenuActionText}>Copy</Text>
+          </Pressable>
+          <View style={styles.selectionMenuActionDivider} />
+          <Pressable
+            accessibilityRole="button"
+            disabled={!state.selectedElement?.frame?.file}
+            onPress={() => void handleOpenSelectedElement()}
+            style={({ pressed }) => [
+              styles.selectionMenuActionButton,
+              pressed &&
+                state.selectedElement?.frame?.file &&
+                styles.selectionMenuActionButtonPressed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.selectionMenuActionText,
+                !state.selectedElement?.frame?.file && styles.selectionMenuActionTextDisabled,
+              ]}
+            >
+              Open
             </Text>
-          </View>
-          <View style={styles.selectionMenuActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handleCopySelectedElement()}
-              style={({ pressed }) => [
-                styles.selectionMenuActionButton,
-                pressed && styles.selectionMenuActionButtonPressed,
-              ]}
-            >
-              <Text style={styles.selectionMenuActionText}>Copy</Text>
-            </Pressable>
-            <View style={styles.selectionMenuActionDivider} />
-            <Pressable
-              accessibilityRole="button"
-              disabled={!state.selectedElement?.frame?.file}
-              onPress={() => void handleOpenSelectedElement()}
-              style={({ pressed }) => [
-                styles.selectionMenuActionButton,
-                pressed &&
-                  state.selectedElement?.frame?.file &&
-                  styles.selectionMenuActionButtonPressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.selectionMenuActionText,
-                  !state.selectedElement?.frame?.file && styles.selectionMenuActionTextDisabled,
-                ]}
-              >
-                Open
-              </Text>
-            </Pressable>
-          </View>
-        </ContextMenu>
-      </View>
-    </FullScreenOverlay>
+          </Pressable>
+        </View>
+      </ContextMenu>
+    </View>
   );
 };
 
@@ -464,15 +416,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
   },
-  sessionCapture: {
-    zIndex: 1,
-  },
-  controlBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    zIndex: 2,
-  },
   topBadge: {
     position: "absolute",
     top: 52,
@@ -480,12 +423,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: BADGE_BACKGROUND,
+    backgroundColor: GRAB_BADGE_BACKGROUND,
   },
   topBadgeText: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
+  },
+  highlight: {
+    position: "absolute",
+    backgroundColor: GRAB_HIGHLIGHT_FILL,
+    borderWidth: 1,
+    borderColor: GRAB_PRIMARY,
   },
   selectionMenuHeader: {
     paddingHorizontal: 14,

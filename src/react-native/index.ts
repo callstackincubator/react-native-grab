@@ -1,9 +1,6 @@
 import type { ReactNativeGrabRootProps } from "./grab-root";
 import type { ReactNativeGrabScreenProps } from "./grab-screen";
-import type {
-  ReactNativeGrabContextProviderProps,
-  ReactNativeGrabContextValue,
-} from "./grab-context";
+import type { ReactNativeGrabContextProviderProps } from "./grab-context";
 import type { ReactNode } from "react";
 
 export type { ReactNativeGrabRootProps } from "./grab-root";

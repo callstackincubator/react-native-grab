@@ -94,44 +94,46 @@ export const GrabControlBar = ({
     <Animated.View pointerEvents={isVisible ? "auto" : "none"} style={containerStyle}>
       <Animated.View style={containerAnimatedStyle}>
         <Animated.View style={[styles.container, style]}>
-          <View
-            accessibilityHint="Drag to reposition the React Native Grab controls."
-            accessibilityLabel="Move controls"
-            accessibilityRole="adjustable"
-            style={styles.slot}
-            {...dragHandlePanHandlers}
-          >
-            <Image source={{ uri: DRAG_ICON_IMAGE_URL }} style={styles.dragIcon} />
+          <View style={styles.content}>
+            <View
+              accessibilityHint="Drag to reposition the React Native Grab controls."
+              accessibilityLabel="Move controls"
+              accessibilityRole="adjustable"
+              style={styles.slot}
+              {...dragHandlePanHandlers}
+            >
+              <Image source={{ uri: DRAG_ICON_IMAGE_URL }} style={styles.dragIcon} />
+            </View>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              accessibilityHint="Starts selecting an element to copy its description."
+              accessibilityLabel="Select element"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onPressSelect}
+              style={({ pressed }) => [styles.slot, pressed && styles.pressedButton]}
+            >
+              <Image
+                source={{ uri: INSPECT_ICON_IMAGE_URL }}
+                style={[styles.inspectIcon, isSessionEnabled && styles.inspectIconActive]}
+              />
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              accessibilityHint="Hides the React Native Grab controls."
+              accessibilityLabel="Hide controls"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onPressHide}
+              style={({ pressed }) => [styles.slot, pressed && styles.pressedButton]}
+            >
+              <Image source={{ uri: HIDE_ICON_IMAGE_URL }} style={styles.arrowIcon} />
+            </Pressable>
           </View>
-
-          <View style={styles.divider} />
-
-          <Pressable
-            accessibilityHint="Starts selecting an element to copy its description."
-            accessibilityLabel="Select element"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onPressSelect}
-            style={({ pressed }) => [styles.slot, pressed && styles.pressedButton]}
-          >
-            <Image
-              source={{ uri: INSPECT_ICON_IMAGE_URL }}
-              style={[styles.inspectIcon, isSessionEnabled && styles.inspectIconActive]}
-            />
-          </Pressable>
-
-          <View style={styles.divider} />
-
-          <Pressable
-            accessibilityHint="Hides the React Native Grab controls."
-            accessibilityLabel="Hide controls"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onPressHide}
-            style={({ pressed }) => [styles.slot, pressed && styles.pressedButton]}
-          >
-            <Image source={{ uri: HIDE_ICON_IMAGE_URL }} style={styles.arrowIcon} />
-          </Pressable>
         </Animated.View>
       </Animated.View>
     </Animated.View>
@@ -143,15 +145,19 @@ const styles = StyleSheet.create({
     height: BAR_HEIGHT,
     width: BAR_WIDTH,
     borderRadius: BAR_HEIGHT / 2,
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    overflow: "hidden",
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 8,
+  },
+  content: {
+    flex: 1,
+    borderRadius: BAR_HEIGHT / 2,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
   },
   slot: {
     width: SLOT_WIDTH,
