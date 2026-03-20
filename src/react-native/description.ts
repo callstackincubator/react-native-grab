@@ -18,6 +18,26 @@ const PRIORITY_ATTRS = [
   "accessibilityValue",
 ] as const;
 
+/** Owner names treated as host-like when resolving `Text (in Owner)` for the grab menu. */
+export const GRAB_HOST_LIKE_COMPONENT_NAMES = ["View", "Text"] as const;
+
+const HOST_LIKE_NAME_SET = new Set<string>(GRAB_HOST_LIKE_COMPONENT_NAMES);
+
+export const isHostLikeComponentName = (name: string): boolean =>
+  HOST_LIKE_NAME_SET.has(name.trim());
+
+const firstHostLikeRenderedByName = (renderedBy: RenderedByFrame[]): string | null => {
+  const frame = renderedBy.find((f) => isHostLikeComponentName(f.name));
+  const trimmed = frame?.name?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+};
+
+const firstNonHostRenderedByName = (renderedBy: RenderedByFrame[]): string | null => {
+  const frame = renderedBy.find((f) => !isHostLikeComponentName(f.name));
+  const trimmed = frame?.name?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+};
+
 const truncate = (value: string, maxLength: number): string => {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength - 3)}...`;
@@ -120,8 +140,8 @@ const getPreviewComponentName = (
   node: ReactNativeFiberNode,
   renderedBy: RenderedByFrame[],
 ): string => {
-  const firstRenderedBy = renderedBy[0]?.name?.trim();
-  if (firstRenderedBy) return firstRenderedBy;
+  const fromRenderedBy = firstNonHostRenderedByName(renderedBy);
+  if (fromRenderedBy) return fromRenderedBy;
 
   const hostFiber = getHostFiber(node);
   return getHostComponentName(hostFiber);
@@ -206,6 +226,22 @@ const buildContextBlock = (contextValue: ReactNativeGrabContextValue | null): st
   }
 
   return `\n\nContext:\n${JSON.stringify(contextValue, null, 2)}`;
+};
+
+export const getGrabSelectionTitle = (
+  node: ReactNativeFiberNode,
+  renderedBy: RenderedByFrame[],
+): string => {
+  const fromFiber = getHostComponentName(getHostFiber(node));
+  const rawHostLabel =
+    firstHostLikeRenderedByName(renderedBy) ?? (fromFiber !== "(unknown)" ? fromFiber : null);
+  const hostUnknown = rawHostLabel == null;
+  const hostLabel = hostUnknown ? "Selected element" : rawHostLabel;
+  const ownerName = firstNonHostRenderedByName(renderedBy);
+  if (ownerName && ownerName !== hostLabel) {
+    return `${hostLabel} (in ${ownerName})`;
+  }
+  return hostLabel;
 };
 
 export const getDescription = async (node: ReactNativeFiberNode): Promise<string> => {
