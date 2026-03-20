@@ -20,7 +20,7 @@ import {
   showGrabSelectionMenu,
   unregisterLocalGrabSelectionController,
 } from "./grab-controller";
-import { getDescription } from "./description";
+import { getDescription, getGrabSelectionTitle } from "./description";
 import { getRenderedBy, type RenderedByFrame } from "./get-rendered-by";
 import { findNodeAtPoint, measureInWindow } from "./measure";
 import { openStackFrameInEditor } from "./open";
@@ -178,8 +178,7 @@ export const ReactNativeGrabOverlay = ({
       ]);
 
       const firstFrame = renderedBy.find((frame) => Boolean(frame.file)) ?? null;
-      const elementNameMatch = description.match(/<([A-Za-z0-9_$.:-]+)/);
-      const elementName = elementNameMatch?.[1] ?? firstFrame?.name ?? "Selected element";
+      const elementName = getGrabSelectionTitle(result.fiberNode, renderedBy);
 
       setState((prev) => ({
         ...prev,
@@ -369,7 +368,12 @@ export const ReactNativeGrabOverlay = ({
         visible={state.selectedElement !== null}
       >
         <View style={styles.selectionMenuHeader}>
-          <Text numberOfLines={1} style={styles.selectionMenuTitle}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
+            numberOfLines={1}
+            style={styles.selectionMenuTitle}
+          >
             {state.selectedElement?.elementName}
           </Text>
         </View>
@@ -437,10 +441,12 @@ const styles = StyleSheet.create({
     borderColor: GRAB_PRIMARY,
   },
   selectionMenuHeader: {
+    alignSelf: "stretch",
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   selectionMenuTitle: {
+    width: "100%",
     color: "#111111",
     fontSize: 14,
     fontWeight: "600",
