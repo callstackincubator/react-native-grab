@@ -1,5 +1,12 @@
 # react-native-grab
 
+## 1.1.1
+
+### Patch Changes
+
+- ba7c5d4: Fix misaligned grab highlights by mounting the overlay per screen, so grab lines up correctly with native tab layouts (e.g. bottom tabs).
+- d029f4b: Grab labels now prefer meaningful component names from the owner stack (skipping generic `View` / `Text` wrappers), so the menu shows titles like **Text (in YourScreen)** and the copied description preview matches. The selection menu title also scales down when the label is long so it stays readable.
+
 ## 1.1.0
 
 ### Minor Changes
