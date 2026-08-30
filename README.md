@@ -33,7 +33,8 @@ npm install react-native-grab
 1. Add React Native Grab middleware to Metro.
 2. Wrap your app root with `ReactNativeGrabRoot`.
 3. **If your app uses native navigators** (e.g. native stack, native tabs), **wrap each screen** with `ReactNativeGrabScreen`.
-4. Open Dev Menu and choose `React Native Grab` to start selecting elements.
+4. Wrap content hosted in a separately presented native sheet or modal with `ReactNativeGrabSurface` and set `active` only while it is presented.
+5. Open Dev Menu and choose `React Native Grab` to start selecting elements.
 
 ## Quick Configuration Example
 
@@ -72,6 +73,7 @@ export default function AppLayout() {
 
 - `ReactNativeGrabRoot`: Root-level provider for grab functionality.
 - `ReactNativeGrabScreen`: When using native navigators (native stack, native tabs), wrap **each screen** with this component for accurate selection.
+- `ReactNativeGrabSurface`: Wraps content hosted in a separately presented native surface. An active surface takes selection priority over the focused screen; when it becomes inactive, selection falls back to the focused screen or root. This component is a no-op in production builds.
 - `ReactNativeGrabContextProvider`: Adds custom metadata to grabbed elements. Nested providers are shallow-merged and child keys override parent keys. This provider is a no-op in production builds.
 - `enableGrabbing()`: Programmatically enables grabbing flow.
 - `setFocusEffect(impl)`: Overrides the hook used by `ReactNativeGrabScreen` to detect when a screen is focused. By default the library auto-detects `useFocusEffect` from `expo-router` or `@react-navigation/native`. Call `setFocusEffect` once at app startup when neither package is present (e.g. a custom router) or when you want explicit control over which implementation is used.
@@ -81,6 +83,23 @@ import { setFocusEffect } from "react-native-grab";
 import { useFocusEffect } from "my-custom-router";
 
 setFocusEffect(useFocusEffect);
+```
+
+For a native sheet or modal, place `ReactNativeGrabSurface` inside the presented content and keep `active` synchronized with its presentation lifecycle:
+
+```tsx
+import { Modal } from "react-native";
+import { ReactNativeGrabSurface } from "react-native-grab";
+
+function DetailsModal({ visible }: { visible: boolean }) {
+  return (
+    <Modal visible={visible}>
+      <ReactNativeGrabSurface active={visible}>
+        {/* modal or sheet content */}
+      </ReactNativeGrabSurface>
+    </Modal>
+  );
+}
 ```
 
 When grab context is available for a selected element, copied output includes an additional `Context:` JSON block appended after the existing element preview and stack trace lines.
