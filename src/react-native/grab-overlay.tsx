@@ -22,7 +22,7 @@ import {
 } from "./grab-controller";
 import { getDescription, getGrabSelectionTitle } from "./description";
 import { getRenderedBy, type RenderedByFrame } from "./get-rendered-by";
-import { findNodeAtPoint, measureInWindow } from "./measure";
+import { findNodeAtPoint, getFabricWindowOffset, measureInWindow } from "./measure";
 import { openStackFrameInEditor } from "./open";
 import type { BoundingClientRect, ReactNativeFiberNode } from "./types";
 
@@ -51,6 +51,7 @@ export const ReactNativeGrabOverlay = ({
 }: ReactNativeGrabOverlayProps) => {
   const isResolvedSelectionOwner = useIsResolvedGrabSelectionOwner(ownerId);
   const copyBadgeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const windowOffsetRef = useRef<[number, number]>([0, 0]);
   const [bounds, setBounds] = useState({ width: 0, height: 0 });
   const [state, setState] = useState({
     isSessionEnabled: false,
@@ -145,14 +146,16 @@ export const ReactNativeGrabOverlay = ({
     }
 
     // findNodeAtPoint resolves the point against the owner, not the window, so
-    // page coordinates have to be rebased onto the owner's origin. They only
+    // page coordinates have to be moved into Fabric's space (see
+    // getFabricWindowOffset) and then rebased onto the owner's origin. They only
     // coincide for an owner sitting at the window origin, which is why a screen
     // under a native header, or a natively presented surface, missed its target.
     const ownerRect = measureInWindow(owner.shadowNode);
+    const [windowOffsetX, windowOffsetY] = windowOffsetRef.current;
     const internalNode = findNodeAtPoint(
       owner.shadowNode,
-      pageX - ownerRect[0],
-      pageY - ownerRect[1],
+      pageX + windowOffsetX - ownerRect[0],
+      pageY + windowOffsetY - ownerRect[1],
     );
     const shadowNode = internalNode?.stateNode?.node;
 
@@ -225,7 +228,10 @@ export const ReactNativeGrabOverlay = ({
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
 
-      onPanResponderGrant: (evt) => handleTouch(evt.nativeEvent),
+      onPanResponderGrant: (evt) => {
+        windowOffsetRef.current = getFabricWindowOffset(evt.nativeEvent);
+        handleTouch(evt.nativeEvent);
+      },
       onPanResponderMove: (evt) => handleTouch(evt.nativeEvent),
       onPanResponderRelease: (evt) => {
         void (async () => {
