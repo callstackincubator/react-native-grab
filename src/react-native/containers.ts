@@ -13,11 +13,6 @@ export type GrabSelectionOwner = {
   activationOrder: number | null;
 };
 
-type SelectionOwnersStoreSnapshot = {
-  owners: Map<string, GrabSelectionOwner>;
-  focusedScreenOwnerId: string | null;
-};
-
 let ownerIdCounter = 0;
 let registrationOrder = 0;
 let activationOrder = 0;
@@ -37,11 +32,6 @@ const subscribe = (listener: () => void) => {
     listeners.delete(listener);
   };
 };
-
-const getSnapshot = (): SelectionOwnersStoreSnapshot => ({
-  owners: new Map(owners),
-  focusedScreenOwnerId,
-});
 
 const getOwnerShadowNode = (ref: ReactNativeElement, errorMessage: string) => {
   // @ts-expect-error - findNodeHandle is not typed correctly
@@ -67,11 +57,18 @@ const getFallbackRootOwner = () => {
 };
 
 const getActiveSurfaceOwner = () => {
-  const surfaceOwners = Array.from(owners.values()).filter(
-    (owner) => owner.kind === "surface" && owner.activationOrder !== null,
-  );
-  surfaceOwners.sort((left, right) => (right.activationOrder ?? 0) - (left.activationOrder ?? 0));
-  return surfaceOwners[0] ?? null;
+  let activeSurfaceOwner: GrabSelectionOwner | null = null;
+  let highestActivationOrder = -1;
+
+  for (const owner of owners.values()) {
+    const order = owner.kind === "surface" ? owner.activationOrder : null;
+    if (order !== null && order > highestActivationOrder) {
+      activeSurfaceOwner = owner;
+      highestActivationOrder = order;
+    }
+  }
+
+  return activeSurfaceOwner;
 };
 
 export const createGrabSelectionOwnerId = (kind: GrabSelectionOwnerKind) => {
@@ -138,6 +135,9 @@ export const clearGrabSelectionOwnerFocus = (id: string) => {
 
 export const setGrabSelectionOwnerActive = (id: string, isActive: boolean) => {
   const owner = owners.get(id);
+  // Re-activating an already active surface deliberately keeps its original
+  // activation order, so a redundant render cannot promote a surface above one
+  // that was presented on top of it.
   if (!owner || owner.kind !== "surface" || (owner.activationOrder !== null) === isActive) {
     return;
   }
@@ -177,22 +177,10 @@ export const getResolvedGrabSelectionOwnerId = (): string | null => {
   return getResolvedGrabSelectionOwner()?.id ?? null;
 };
 
-export const useResolvedGrabSelectionOwnerId = () => {
-  return useSyncExternalStore(
-    subscribe,
-    () => getResolvedGrabSelectionOwnerId(),
-    () => null,
-  );
-};
-
 export const useIsResolvedGrabSelectionOwner = (id: string) => {
   return useSyncExternalStore(
     subscribe,
     () => getResolvedGrabSelectionOwnerId() === id,
     () => false,
   );
-};
-
-export const useSelectionOwnersStore = () => {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };

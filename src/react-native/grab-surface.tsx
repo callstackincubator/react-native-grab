@@ -16,7 +16,14 @@ export const ReactNativeGrabSurface = ({
   const { ownerId, ownerRef } = useGrabSelectionOwner("surface");
 
   useEffect(() => {
-    setGrabSelectionOwnerActive(ownerId, active);
+    if (!active) {
+      return;
+    }
+
+    setGrabSelectionOwnerActive(ownerId, true);
+    return () => {
+      setGrabSelectionOwnerActive(ownerId, false);
+    };
   }, [active, ownerId]);
 
   return (

@@ -63,4 +63,30 @@ describe("grab selection owner resolution", () => {
     clearGrabSelectionOwnerFocus("screen");
     expect(getResolvedGrabSelectionOwnerId()).toBe("root");
   });
+
+  it("ignores activation for owners that are not surfaces", () => {
+    registerOwner("root", "root", 1);
+    registerOwner("screen", "screen", 2);
+
+    setGrabSelectionOwnerActive("screen", true);
+    setGrabSelectionOwnerActive("root", true);
+
+    expect(getResolvedGrabSelectionOwnerId()).toBe("root");
+  });
+
+  it("falls back to the focused screen when the only active surface unmounts", () => {
+    registerOwner("root", "root", 1);
+    registerOwner("screen", "screen", 2);
+    setGrabSelectionOwnerFocused("screen", true);
+    registerOwner("sheet", "surface", 3);
+    setGrabSelectionOwnerActive("sheet", true);
+    expect(getResolvedGrabSelectionOwnerId()).toBe("sheet");
+
+    unregisterGrabSelectionOwner("sheet");
+    expect(getResolvedGrabSelectionOwnerId()).toBe("screen");
+
+    // A stale activation for the unmounted surface must not resurrect it.
+    setGrabSelectionOwnerActive("sheet", true);
+    expect(getResolvedGrabSelectionOwnerId()).toBe("screen");
+  });
 });

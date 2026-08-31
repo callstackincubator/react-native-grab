@@ -1,6 +1,10 @@
 import type { ViewProps } from "react-native";
 import { ReactNativeGrabRootControls } from "./grab-root-controls";
-import { GrabSelectionOwnerView, useGrabSelectionOwner } from "./grab-selection-owner";
+import {
+  grabSelectionOwnerFillStyle,
+  GrabSelectionOwnerView,
+  useGrabSelectionOwner,
+} from "./grab-selection-owner";
 
 export type ReactNativeGrabRootProps = ViewProps;
 
@@ -9,7 +13,12 @@ export const ReactNativeGrabRoot = ({ children, style, ...props }: ReactNativeGr
 
   return (
     <>
-      <GrabSelectionOwnerView {...props} fill ownerId={ownerId} ownerRef={ownerRef} style={style}>
+      <GrabSelectionOwnerView
+        {...props}
+        ownerId={ownerId}
+        ownerRef={ownerRef}
+        style={[grabSelectionOwnerFillStyle, style]}
+      >
         {children}
       </GrabSelectionOwnerView>
 

@@ -8,18 +8,26 @@ import {
 } from "./containers";
 import { ReactNativeGrabOverlay } from "./grab-overlay";
 
+/** Root and screen owners always fill their parent; surfaces are sized by their host. */
+export const grabSelectionOwnerFillStyle = { flex: 1 } as const;
+
 export const useGrabSelectionOwner = (kind: GrabSelectionOwnerKind, id?: string) => {
   const ownerRef = useRef<View | null>(null);
   const ownerIdRef = useRef(id ?? createGrabSelectionOwnerId(kind));
 
   useEffect(() => {
+    const ownerId = ownerIdRef.current;
+
     if (!ownerRef.current) {
+      console.error(
+        `[react-native-grab] Failed to register ${kind} selection owner: the view ref was never attached. Elements inside it cannot be grabbed.`,
+      );
       return;
     }
 
-    registerGrabSelectionOwner(ownerIdRef.current, kind, ownerRef.current);
+    registerGrabSelectionOwner(ownerId, kind, ownerRef.current);
     return () => {
-      unregisterGrabSelectionOwner(ownerIdRef.current);
+      unregisterGrabSelectionOwner(ownerId);
     };
   }, [kind]);
 
@@ -27,29 +35,20 @@ export const useGrabSelectionOwner = (kind: GrabSelectionOwnerKind, id?: string)
 };
 
 type GrabSelectionOwnerViewProps = ViewProps & {
-  fill?: boolean;
   ownerId: string;
   ownerRef: RefObject<View | null>;
 };
 
 export const GrabSelectionOwnerView = ({
   children,
-  fill = false,
   ownerId,
   ownerRef,
-  style,
   ...props
 }: GrabSelectionOwnerViewProps) => {
   const [panHandlers, setPanHandlers] = useState<GestureResponderHandlers | null>(null);
 
   return (
-    <View
-      {...props}
-      {...(panHandlers ?? {})}
-      collapsable={false}
-      ref={ownerRef}
-      style={fill ? [{ flex: 1 }, style] : style}
-    >
+    <View {...props} {...(panHandlers ?? {})} collapsable={false} ref={ownerRef}>
       {children}
       <ReactNativeGrabOverlay ownerId={ownerId} onPanHandlersChange={setPanHandlers} />
     </View>
