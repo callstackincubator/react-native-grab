@@ -134,9 +134,10 @@ export const GrabOwnerControls = () => {
   );
 
   return (
-    // The anchor is absolutely positioned so that mounting the controls inside an
-    // owner cannot disturb its layout: an owner is free to be a `gap`-spaced flex
-    // container, and absolutely positioned children are not flex items.
+    // The anchor is absolutely positioned so that mounting the controls alongside
+    // an owner cannot disturb the surrounding layout: that parent is free to be a
+    // `gap`-spaced flex container, and absolutely positioned children are not flex
+    // items.
     <View pointerEvents="box-none" style={styles.overlayAnchor}>
       <FullScreenOverlay>
         {/* Measured rather than the anchor, because `FullScreenOverlay` lifts this
