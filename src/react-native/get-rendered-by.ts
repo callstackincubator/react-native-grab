@@ -1,4 +1,4 @@
-import symbolicateStackTrace from "react-native/Libraries/Core/Devtools/symbolicateStackTrace";
+import { symbolicateStackTrace } from "./symbolicate";
 import { ReactNativeFiberNode } from "./types";
 
 export type RenderedByFrame = {
