@@ -144,14 +144,22 @@ export const ReactNativeGrabOverlay = ({
       return null;
     }
 
-    const internalNode = findNodeAtPoint(owner.shadowNode, pageX, pageY);
+    // findNodeAtPoint resolves the point against the owner, not the window, so
+    // page coordinates have to be rebased onto the owner's origin. They only
+    // coincide for an owner sitting at the window origin, which is why a screen
+    // under a native header, or a natively presented surface, missed its target.
+    const ownerRect = measureInWindow(owner.shadowNode);
+    const internalNode = findNodeAtPoint(
+      owner.shadowNode,
+      pageX - ownerRect[0],
+      pageY - ownerRect[1],
+    );
     const shadowNode = internalNode?.stateNode?.node;
 
     if (!shadowNode) {
       return null;
     }
 
-    const ownerRect = measureInWindow(owner.shadowNode);
     const rect = nativeFabricUIManager.getBoundingClientRect(shadowNode, true);
     return {
       fiberNode: internalNode,

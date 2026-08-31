@@ -1,6 +1,6 @@
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -28,9 +28,14 @@ function AutoSheetTarget() {
   return <Text style={[styles.target, { color: theme.text }]}>Auto sheet target</Text>;
 }
 
-function FullSheetTarget() {
+function StackedSheetTarget() {
   const theme = useTheme();
-  return <Text style={[styles.target, { color: theme.text }]}>Full sheet target</Text>;
+  return <Text style={[styles.target, { color: theme.text }]}>Stacked sheet target</Text>;
+}
+
+function ModalTarget() {
+  const theme = useTheme();
+  return <Text style={[styles.target, { color: theme.text }]}>Modal target</Text>;
 }
 
 type ActionProps = {
@@ -51,12 +56,13 @@ function Action({ label, onPress }: ActionProps) {
 export default function SheetPlaygroundScreen() {
   const theme = useTheme();
   const autoSheet = useRef<TrueSheet>(null);
-  const fullSheet = useRef<TrueSheet>(null);
+  const stackedSheet = useRef<TrueSheet>(null);
 
   // Driven by the sheet's own presentation lifecycle rather than by the press
   // handlers, so drag-to-dismiss also deactivates the surface.
   const [isAutoSheetPresented, setIsAutoSheetPresented] = useState(false);
-  const [isFullSheetPresented, setIsFullSheetPresented] = useState(false);
+  const [isStackedSheetPresented, setIsStackedSheetPresented] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   return (
     <ReactNativeGrabScreen>
@@ -73,6 +79,7 @@ export default function SheetPlaygroundScreen() {
         <View style={styles.actions}>
           <Action label="Start grabbing on screen" onPress={enableGrabbing} />
           <Action label="Open auto sheet" onPress={() => void autoSheet.current?.present()} />
+          <Action label="Open modal" onPress={() => setIsModalVisible(true)} />
         </View>
       </ThemedView>
 
@@ -91,32 +98,47 @@ export default function SheetPlaygroundScreen() {
           <ThemedText type="subtitle">Auto sheet</ThemedText>
           <AutoSheetTarget />
           <Action label="Start grabbing in auto sheet" onPress={enableGrabbing} />
-          <Action label="Open full sheet" onPress={() => void fullSheet.current?.present()} />
+          <Action label="Open stacked sheet" onPress={() => void stackedSheet.current?.present()} />
           <Action label="Dismiss auto sheet" onPress={() => void autoSheet.current?.dismiss()} />
         </ReactNativeGrabSurface>
       </TrueSheet>
 
-      {/* Fixed-height sheet: the surface has to fill the sheet, so it takes an
-          explicit flex style. */}
+      {/* Second sheet, presented on top of the first one: the most recently
+          activated surface has to win, and dismissing it has to hand selection
+          back to the sheet underneath rather than to the screen. */}
       <TrueSheet
-        ref={fullSheet}
-        name="full-sheet"
-        detents={[0.9]}
+        ref={stackedSheet}
+        name="stacked-sheet"
+        detents={["auto"]}
         cornerRadius={24}
         backgroundColor={theme.background}
-        onDidPresent={() => setIsFullSheetPresented(true)}
-        onDidDismiss={() => setIsFullSheetPresented(false)}
+        onDidPresent={() => setIsStackedSheetPresented(true)}
+        onDidDismiss={() => setIsStackedSheetPresented(false)}
       >
-        <ReactNativeGrabSurface
-          active={isFullSheetPresented}
-          style={[styles.sheetContent, styles.fill]}
-        >
-          <ThemedText type="subtitle">Full sheet</ThemedText>
-          <FullSheetTarget />
-          <Action label="Start grabbing in full sheet" onPress={enableGrabbing} />
-          <Action label="Dismiss full sheet" onPress={() => void fullSheet.current?.dismiss()} />
+        <ReactNativeGrabSurface active={isStackedSheetPresented} style={styles.sheetContent}>
+          <ThemedText type="subtitle">Stacked sheet</ThemedText>
+          <StackedSheetTarget />
+          <Action label="Start grabbing in stacked sheet" onPress={enableGrabbing} />
+          <Action
+            label="Dismiss stacked sheet"
+            onPress={() => void stackedSheet.current?.dismiss()}
+          />
         </ReactNativeGrabSurface>
       </TrueSheet>
+
+      {/* A plain RN modal presents a full-screen container, so here the surface
+          has to be told to fill it. */}
+      <Modal visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
+        <ReactNativeGrabSurface
+          active={isModalVisible}
+          style={[styles.sheetContent, styles.fill, { backgroundColor: theme.background }]}
+        >
+          <ThemedText type="subtitle">Modal</ThemedText>
+          <ModalTarget />
+          <Action label="Start grabbing in modal" onPress={enableGrabbing} />
+          <Action label="Close modal" onPress={() => setIsModalVisible(false)} />
+        </ReactNativeGrabSurface>
+      </Modal>
     </ReactNativeGrabScreen>
   );
 }
