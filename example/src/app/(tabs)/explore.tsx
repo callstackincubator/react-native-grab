@@ -105,6 +105,31 @@ export default function TabTwoScreen() {
               </Link>
             </Collapsible>
 
+            <Collapsible title="Native sheet">
+              <ThemedText type="small">
+                Content presented by a native sheet lives outside the screen subtree. Open the sheet
+                playground and try selecting elements inside a presented sheet.
+              </ThemedText>
+              <Link href="/sheet-playground" asChild>
+                <Pressable
+                  style={({ pressed }) => [styles.modalTrigger, pressed && styles.pressed]}
+                >
+                  <ThemedView type="backgroundElement" style={styles.modalTriggerInner}>
+                    <ThemedText type="link">Open sheet playground</ThemedText>
+                    <SymbolView
+                      tintColor={theme.text}
+                      name={{
+                        ios: "rectangle.bottomhalf.filled",
+                        android: "layers",
+                        web: "layers",
+                      }}
+                      size={14}
+                    />
+                  </ThemedView>
+                </Pressable>
+              </Link>
+            </Collapsible>
+
             <Collapsible title="Grab context playground">
               <ThemedText type="small">
                 Open a dedicated modal with nested grab context providers. Each nested element

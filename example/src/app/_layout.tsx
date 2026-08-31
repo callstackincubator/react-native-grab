@@ -22,6 +22,7 @@ export default function MainLayout() {
               name="context-playground"
               options={{ presentation: "modal", title: "Context Playground" }}
             />
+            <Stack.Screen name="sheet-playground" options={{ title: "Sheet Playground" }} />
           </Stack>
         </View>
       </ThemeProvider>
