@@ -53,10 +53,21 @@ export const GrabSelectionOwnerView = ({
   const isResolvedSelectionOwner = useIsResolvedGrabSelectionOwner(ownerId);
 
   return (
-    <View {...props} {...(panHandlers ?? {})} collapsable={false} ref={ownerRef}>
-      {children}
-      <ReactNativeGrabOverlay ownerId={ownerId} onPanHandlersChange={setPanHandlers} />
+    <>
+      <View {...props} {...(panHandlers ?? {})} collapsable={false} ref={ownerRef}>
+        {children}
+        <ReactNativeGrabOverlay ownerId={ownerId} onPanHandlersChange={setPanHandlers} />
+      </View>
+
+      {/*
+        A sibling of the registered view rather than a child of it: `findNodeAtPoint`
+        walks the owner's shadow subtree and skips a node only when its `pointerEvents`
+        makes it untargetable. The controls cannot rely on that - on iOS they are hosted
+        by `FullWindowOverlay`, a full-screen native node that takes no `pointerEvents`
+        prop - so a controls subtree inside the owner swallows every hit test and
+        resolves each grab to the owner itself.
+      */}
       {isResolvedSelectionOwner && <GrabOwnerControls />}
-    </View>
+    </>
   );
 };
