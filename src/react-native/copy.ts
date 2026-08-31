@@ -1,4 +1,4 @@
-import getDevServer from "react-native/Libraries/Core/Devtools/getDevServer";
+import { getDevServer } from "./dev-server";
 
 const DEFAULT_COPY_ENDPOINT = "/__react-native-grab/copy";
 
