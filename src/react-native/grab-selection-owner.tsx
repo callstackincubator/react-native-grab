@@ -4,8 +4,10 @@ import {
   createGrabSelectionOwnerId,
   registerGrabSelectionOwner,
   unregisterGrabSelectionOwner,
+  useIsResolvedGrabSelectionOwner,
   type GrabSelectionOwnerKind,
 } from "./containers";
+import { GrabOwnerControls } from "./grab-controls";
 import { ReactNativeGrabOverlay } from "./grab-overlay";
 
 /** Root and screen owners always fill their parent; surfaces are sized by their host. */
@@ -46,11 +48,15 @@ export const GrabSelectionOwnerView = ({
   ...props
 }: GrabSelectionOwnerViewProps) => {
   const [panHandlers, setPanHandlers] = useState<GestureResponderHandlers | null>(null);
+  // The controls belong to whichever owner resolves selection, so that they are
+  // rendered in the same native window as the content they act on.
+  const isResolvedSelectionOwner = useIsResolvedGrabSelectionOwner(ownerId);
 
   return (
     <View {...props} {...(panHandlers ?? {})} collapsable={false} ref={ownerRef}>
       {children}
       <ReactNativeGrabOverlay ownerId={ownerId} onPanHandlersChange={setPanHandlers} />
+      {isResolvedSelectionOwner && <GrabOwnerControls />}
     </View>
   );
 };

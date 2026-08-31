@@ -1,5 +1,6 @@
 import type { ViewProps } from "react-native";
-import { ReactNativeGrabRootControls } from "./grab-root-controls";
+import { useDevMenu } from "./dev-menu";
+import { toggleGrabMenu } from "./grab-controller";
 import {
   grabSelectionOwnerFillStyle,
   GrabSelectionOwnerView,
@@ -11,18 +12,18 @@ export type ReactNativeGrabRootProps = ViewProps;
 export const ReactNativeGrabRoot = ({ children, style, ...props }: ReactNativeGrabRootProps) => {
   const { ownerId, ownerRef } = useGrabSelectionOwner("root");
 
-  return (
-    <>
-      <GrabSelectionOwnerView
-        {...props}
-        ownerId={ownerId}
-        ownerRef={ownerRef}
-        style={[grabSelectionOwnerFillStyle, style]}
-      >
-        {children}
-      </GrabSelectionOwnerView>
+  // Registered from the root rather than from the resolved owner: the dev menu
+  // item has to outlive selection moving between owners.
+  useDevMenu(toggleGrabMenu);
 
-      <ReactNativeGrabRootControls />
-    </>
+  return (
+    <GrabSelectionOwnerView
+      {...props}
+      ownerId={ownerId}
+      ownerRef={ownerRef}
+      style={[grabSelectionOwnerFillStyle, style]}
+    >
+      {children}
+    </GrabSelectionOwnerView>
   );
 };
