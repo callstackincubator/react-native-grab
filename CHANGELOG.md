@@ -1,5 +1,12 @@
 # react-native-grab
 
+## 1.1.3
+
+### Patch Changes
+
+- 10a173c: Remove deep imports from `react-native`. `getDevServer` and `symbolicateStackTrace` are now implemented locally on top of the public `NativeModules` export and Metro's `symbolicate` endpoint, so the deprecation warnings are gone and the library keeps working under the Strict API that React Native 0.87 enables by default.
+- d7c9ef5: Keep the grab controls out of the selection owner's shadow subtree, so elements can be grabbed again on iOS. The controls moved inside the owner view when they started rendering in the resolved owner's window, and on iOS they are hosted by `FullWindowOverlay` - a full-screen native node that takes no `pointerEvents` prop. `findNodeAtPoint` walks the owner's subtree and skips a node only when its `pointerEvents` makes it untargetable, so that overlay swallowed every hit test and resolved each grab to the owner itself. The controls are now a sibling of the registered view, which keeps them in the owner's window without shadowing its content.
+
 ## 1.1.2
 
 ### Patch Changes
