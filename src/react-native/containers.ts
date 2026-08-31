@@ -3,22 +3,19 @@ import { findNodeHandle, type ReactNativeElement } from "react-native";
 import type { ReactNativeShadowNode } from "./types";
 import { getFabricUIManager } from "./fabric";
 
-export type GrabSelectionOwnerKind = "root" | "screen";
+export type GrabSelectionOwnerKind = "root" | "screen" | "surface";
 
 export type GrabSelectionOwner = {
   id: string;
   kind: GrabSelectionOwnerKind;
   shadowNode: ReactNativeShadowNode;
   registrationOrder: number;
-};
-
-type SelectionOwnersStoreSnapshot = {
-  owners: Map<string, GrabSelectionOwner>;
-  focusedScreenOwnerId: string | null;
+  activationOrder: number | null;
 };
 
 let ownerIdCounter = 0;
 let registrationOrder = 0;
+let activationOrder = 0;
 let focusedScreenOwnerId: string | null = null;
 const owners = new Map<string, GrabSelectionOwner>();
 const listeners = new Set<() => void>();
@@ -36,11 +33,6 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-const getSnapshot = (): SelectionOwnersStoreSnapshot => ({
-  owners: new Map(owners),
-  focusedScreenOwnerId,
-});
-
 const getOwnerShadowNode = (ref: ReactNativeElement, errorMessage: string) => {
   // @ts-expect-error - findNodeHandle is not typed correctly
   const nativeTag = findNodeHandle(ref);
@@ -52,10 +44,31 @@ const getOwnerShadowNode = (ref: ReactNativeElement, errorMessage: string) => {
   return getFabricUIManager().findShadowNodeByTag_DEPRECATED(nativeTag);
 };
 
+const ownerNativeTagErrorMessages: Record<GrabSelectionOwnerKind, string> = {
+  root: "Failed to find native tag for app root",
+  screen: "Failed to find native tag for screen",
+  surface: "Failed to find native tag for native surface",
+};
+
 const getFallbackRootOwner = () => {
   const rootOwners = Array.from(owners.values()).filter((owner) => owner.kind === "root");
   rootOwners.sort((left, right) => right.registrationOrder - left.registrationOrder);
   return rootOwners[0] ?? null;
+};
+
+const getActiveSurfaceOwner = () => {
+  let activeSurfaceOwner: GrabSelectionOwner | null = null;
+  let highestActivationOrder = -1;
+
+  for (const owner of owners.values()) {
+    const order = owner.kind === "surface" ? owner.activationOrder : null;
+    if (order !== null && order > highestActivationOrder) {
+      activeSurfaceOwner = owner;
+      highestActivationOrder = order;
+    }
+  }
+
+  return activeSurfaceOwner;
 };
 
 export const createGrabSelectionOwnerId = (kind: GrabSelectionOwnerKind) => {
@@ -68,12 +81,7 @@ export const registerGrabSelectionOwner = (
   kind: GrabSelectionOwnerKind,
   ref: ReactNativeElement,
 ) => {
-  const shadowNode = getOwnerShadowNode(
-    ref,
-    kind === "root"
-      ? "Failed to find native tag for app root"
-      : "Failed to find native tag for screen",
-  );
+  const shadowNode = getOwnerShadowNode(ref, ownerNativeTagErrorMessages[kind]);
 
   registrationOrder += 1;
   owners.set(id, {
@@ -81,6 +89,7 @@ export const registerGrabSelectionOwner = (
     kind,
     shadowNode,
     registrationOrder,
+    activationOrder: null,
   });
   notify();
 };
@@ -124,11 +133,36 @@ export const clearGrabSelectionOwnerFocus = (id: string) => {
   notify();
 };
 
+export const setGrabSelectionOwnerActive = (id: string, isActive: boolean) => {
+  const owner = owners.get(id);
+  // Re-activating an already active surface deliberately keeps its original
+  // activation order, so a redundant render cannot promote a surface above one
+  // that was presented on top of it.
+  if (!owner || owner.kind !== "surface" || (owner.activationOrder !== null) === isActive) {
+    return;
+  }
+
+  if (isActive) {
+    activationOrder += 1;
+  }
+
+  owners.set(id, {
+    ...owner,
+    activationOrder: isActive ? activationOrder : null,
+  });
+  notify();
+};
+
 export const getGrabSelectionOwner = (id: string): GrabSelectionOwner | null => {
   return owners.get(id) ?? null;
 };
 
 export const getResolvedGrabSelectionOwner = (): GrabSelectionOwner | null => {
+  const activeSurfaceOwner = getActiveSurfaceOwner();
+  if (activeSurfaceOwner) {
+    return activeSurfaceOwner;
+  }
+
   if (focusedScreenOwnerId) {
     const focusedOwner = owners.get(focusedScreenOwnerId);
     if (focusedOwner) {
@@ -143,22 +177,10 @@ export const getResolvedGrabSelectionOwnerId = (): string | null => {
   return getResolvedGrabSelectionOwner()?.id ?? null;
 };
 
-export const useResolvedGrabSelectionOwnerId = () => {
-  return useSyncExternalStore(
-    subscribe,
-    () => getResolvedGrabSelectionOwnerId(),
-    () => null,
-  );
-};
-
 export const useIsResolvedGrabSelectionOwner = (id: string) => {
   return useSyncExternalStore(
     subscribe,
     () => getResolvedGrabSelectionOwnerId() === id,
     () => false,
   );
-};
-
-export const useSelectionOwnersStore = () => {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };

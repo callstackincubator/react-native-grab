@@ -1,10 +1,12 @@
 import type { ReactNativeGrabRootProps } from "./grab-root";
 import type { ReactNativeGrabScreenProps } from "./grab-screen";
+import type { ReactNativeGrabSurfaceProps } from "./grab-surface";
 import type { ReactNativeGrabContextProviderProps } from "./grab-context";
 import type { ReactNode } from "react";
 
 export type { ReactNativeGrabRootProps } from "./grab-root";
 export type { ReactNativeGrabScreenProps } from "./grab-screen";
+export type { ReactNativeGrabSurfaceProps } from "./grab-surface";
 export type {
   ReactNativeGrabContextProviderProps,
   ReactNativeGrabContextValue,
@@ -19,6 +21,10 @@ export const ReactNativeGrabRoot: React.ComponentType<ReactNativeGrabRootProps> 
 
 export const ReactNativeGrabScreen: React.ComponentType<ReactNativeGrabScreenProps> = __DEV__
   ? require("./grab-screen").ReactNativeGrabScreen
+  : Passthrough;
+
+export const ReactNativeGrabSurface: React.ComponentType<ReactNativeGrabSurfaceProps> = __DEV__
+  ? require("./grab-surface").ReactNativeGrabSurface
   : Passthrough;
 
 export const ReactNativeGrabContextProvider: React.ComponentType<ReactNativeGrabContextProviderProps> =

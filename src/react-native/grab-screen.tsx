@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { View, type GestureResponderHandlers, type ViewProps } from "react-native";
-import {
-  clearGrabSelectionOwnerFocus,
-  createGrabSelectionOwnerId,
-  registerGrabSelectionOwner,
-  setGrabSelectionOwnerFocused,
-  unregisterGrabSelectionOwner,
-} from "./containers";
+import { useCallback } from "react";
+import { type ViewProps } from "react-native";
+import { clearGrabSelectionOwnerFocus, setGrabSelectionOwnerFocused } from "./containers";
 import { getFocusEffect } from "./focus-effect";
-import { ReactNativeGrabOverlay } from "./grab-overlay";
+import {
+  grabSelectionOwnerFillStyle,
+  GrabSelectionOwnerView,
+  useGrabSelectionOwner,
+} from "./grab-selection-owner";
 
 const useFocusEffect = getFocusEffect();
 
@@ -22,44 +20,25 @@ export const ReactNativeGrabScreen = ({
   id,
   ...props
 }: ReactNativeGrabScreenProps) => {
-  const screenRef = useRef<View | null>(null);
-  const ownerIdRef = useRef(id ?? createGrabSelectionOwnerId("screen"));
-  const [panHandlers, setPanHandlers] = useState<GestureResponderHandlers | null>(null);
-
-  useEffect(() => {
-    if (!screenRef.current) {
-      return;
-    }
-
-    registerGrabSelectionOwner(ownerIdRef.current, "screen", screenRef.current);
-    return () => {
-      unregisterGrabSelectionOwner(ownerIdRef.current);
-    };
-  }, []);
+  const { ownerId, ownerRef } = useGrabSelectionOwner("screen", id);
 
   useFocusEffect(
     useCallback(() => {
-      if (!screenRef.current) {
-        return;
-      }
-
-      setGrabSelectionOwnerFocused(ownerIdRef.current, true);
+      setGrabSelectionOwnerFocused(ownerId, true);
       return () => {
-        clearGrabSelectionOwnerFocus(ownerIdRef.current);
+        clearGrabSelectionOwnerFocus(ownerId);
       };
-    }, []),
+    }, [ownerId]),
   );
 
   return (
-    <View
+    <GrabSelectionOwnerView
       {...props}
-      {...(panHandlers ?? {})}
-      collapsable={false}
-      ref={screenRef}
-      style={[{ flex: 1 }, style]}
+      ownerId={ownerId}
+      ownerRef={ownerRef}
+      style={[grabSelectionOwnerFillStyle, style]}
     >
       {children}
-      <ReactNativeGrabOverlay ownerId={ownerIdRef.current} onPanHandlersChange={setPanHandlers} />
-    </View>
+    </GrabSelectionOwnerView>
   );
 };
